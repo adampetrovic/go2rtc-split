@@ -1,6 +1,6 @@
 {
   "name": "go2rtc-split",
-  "version": "0.1.1",
+  "version": "0.1.2",
   "private": true,
   "type": "module",
   "description": "A small PWA for viewing multiple go2rtc streams with mixed browser audio.",

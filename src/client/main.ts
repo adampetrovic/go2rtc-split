@@ -81,7 +81,7 @@ function renderStart(config: RuntimeConfig): void {
 async function startMonitor(config: RuntimeConfig): Promise<void> {
   app.replaceChildren();
 
-  const audioContext = await createAudioContext(config);
+  let audioContext: AudioContext | null = null;
   const monitor = element("main", `monitor layout-${config.layout}`);
   if (config.features.showControls) {
     monitor.classList.add("has-global-controls");
@@ -98,6 +98,7 @@ async function startMonitor(config: RuntimeConfig): Promise<void> {
 
   for (const stream of config.streams) {
     const active = createStreamPanel(stream, config, audioContext, () => {
+      monitor.classList.add("audio-needs-unlock");
       audioBlocked.classList.add("is-visible");
     });
     activeStreams.push(active);
@@ -113,7 +114,12 @@ async function startMonitor(config: RuntimeConfig): Promise<void> {
   monitor.append(audioBlocked);
   app.append(monitor);
 
+  void createAudioContext(config).then((context) => {
+    audioContext = context;
+  });
+
   audioBlockedButton.addEventListener("click", () => {
+    monitor.classList.remove("audio-needs-unlock");
     audioBlocked.classList.remove("is-visible");
     for (const active of activeStreams) {
       if (config.audio.mode !== "muted") active.video.muted = false;
