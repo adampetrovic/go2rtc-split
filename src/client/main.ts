@@ -9,8 +9,16 @@ interface ActiveStream {
   statusText: HTMLElement;
   video: HTMLVideoElement;
   muteButton?: HTMLButtonElement;
+  fullscreenButton?: HTMLButtonElement;
   meter: AudioMeter | null;
   peer: Go2rtcPeer;
+}
+
+interface FullscreenController {
+  toggleDocument: () => Promise<void>;
+  toggleStream: (active: ActiveStream) => Promise<void>;
+  registerGlobalButton: (button: HTMLButtonElement) => void;
+  cleanup: () => void;
 }
 
 const app = getAppRoot();
@@ -50,7 +58,7 @@ function renderStart(config: RuntimeConfig): void {
   const copy = element(
     "p",
     "start-copy",
-    "Open both go2rtc streams in one focused view. Audio from every unmuted stream is played together by the browser, so either room can be heard.",
+    "Open go2rtc streams in one focused view. In split view, audio from every unmuted stream is played together; fullscreen one stream to hear only that room.",
   );
   const list = element("ul", "stream-list");
 
@@ -95,20 +103,30 @@ async function startMonitor(config: RuntimeConfig): Promise<void> {
   audioBlocked.append(audioBlockedButton);
 
   const activeStreams: ActiveStream[] = [];
+  let fullscreenController: FullscreenController | null = null;
 
   for (const stream of config.streams) {
-    const active = createStreamPanel(stream, config, audioContext, () => {
-      if (!config.features.audioUnlockPrompt) return;
-      monitor.classList.add("audio-needs-unlock");
-      audioBlocked.classList.add("is-visible");
-    });
+    const active = createStreamPanel(
+      stream,
+      config,
+      audioContext,
+      () => {
+        if (!config.features.audioUnlockPrompt) return;
+        monitor.classList.add("audio-needs-unlock");
+        audioBlocked.classList.add("is-visible");
+      },
+      (activeStream) => {
+        void fullscreenController?.toggleStream(activeStream);
+      },
+    );
     activeStreams.push(active);
     grid.append(active.panel);
   }
 
   monitor.append(grid);
 
-  const globalControls = createGlobalControls(config, activeStreams, monitor);
+  fullscreenController = createFullscreenController(config, activeStreams, monitor);
+  const globalControls = createGlobalControls(config, activeStreams, fullscreenController);
   if (globalControls.childElementCount > 0) {
     monitor.append(globalControls);
   }
@@ -123,9 +141,16 @@ async function startMonitor(config: RuntimeConfig): Promise<void> {
   audioBlockedButton.addEventListener("click", () => {
     monitor.classList.remove("audio-needs-unlock");
     audioBlocked.classList.remove("is-visible");
+    const fullscreenStream = findFullscreenStream(activeStreams);
+    if (fullscreenStream) {
+      applyFocusedAudio(config, activeStreams, fullscreenStream);
+    } else {
+      for (const active of activeStreams) {
+        if (config.audio.mode !== "muted") active.video.muted = false;
+        updateMuteButton(active);
+      }
+    }
     for (const active of activeStreams) {
-      if (config.audio.mode !== "muted") active.video.muted = false;
-      updateMuteButton(active);
       void active.peer.unlockPlayback();
     }
     void audioContext?.resume().catch(() => undefined);
@@ -149,6 +174,7 @@ function createStreamPanel(
   config: RuntimeConfig,
   audioContext: AudioContext | null,
   onPlaybackBlocked: () => void,
+  onStreamFullscreen: (active: ActiveStream) => void,
 ): ActiveStream {
   const panel = element("article", "stream-panel");
   panel.dataset.state = "idle";
@@ -176,15 +202,20 @@ function createStreamPanel(
   meterElement.append(element("span"));
   const actions = element("div", "panel-actions");
   const muteButton = config.features.showControls ? element("button", "icon-button") : undefined;
+  const fullscreenButton = config.features.fullscreenButton && isFullscreenSupported() ? element("button", "icon-button") : undefined;
   if (muteButton) {
     muteButton.type = "button";
     actions.append(muteButton);
+  }
+  if (fullscreenButton) {
+    fullscreenButton.type = "button";
+    actions.append(fullscreenButton);
   }
 
   if (config.features.audioMeters) {
     bottom.append(meterElement);
   }
-  if (config.features.showControls) {
+  if (actions.childElementCount > 0) {
     bottom.append(actions);
   }
 
@@ -205,18 +236,22 @@ function createStreamPanel(
     onPlaybackBlocked,
   });
 
-  const active: ActiveStream = { stream, panel, statusText, video, muteButton, meter, peer };
+  const active: ActiveStream = { stream, panel, statusText, video, muteButton, fullscreenButton, meter, peer };
 
   muteButton?.addEventListener("click", () => {
     video.muted = !video.muted;
     updateMuteButton(active);
   });
+  fullscreenButton?.addEventListener("click", () => {
+    onStreamFullscreen(active);
+  });
   updateMuteButton(active);
+  updateStreamFullscreenButton(active, false);
 
   return active;
 }
 
-function createGlobalControls(config: RuntimeConfig, activeStreams: ActiveStream[], monitor: HTMLElement): HTMLElement {
+function createGlobalControls(config: RuntimeConfig, activeStreams: ActiveStream[], fullscreenController: FullscreenController): HTMLElement {
   const controls = element("nav", "global-controls");
 
   if (config.features.showControls) {
@@ -237,27 +272,18 @@ function createGlobalControls(config: RuntimeConfig, activeStreams: ActiveStream
     const fullscreen = element("button", "secondary-button fullscreen-button", "Fullscreen");
     fullscreen.type = "button";
     fullscreen.addEventListener("click", () => {
-      if (document.fullscreenElement) {
-        void document.exitFullscreen();
-      } else {
-        void document.documentElement.requestFullscreen({ navigationUI: "hide" }).catch(() => undefined);
-      }
+      void fullscreenController.toggleDocument();
     });
     controls.append(fullscreen);
-
-    const updateFullscreenState = () => {
-      const isFullscreen = Boolean(document.fullscreenElement);
-      monitor.classList.toggle("is-fullscreen", isFullscreen);
-      fullscreen.classList.toggle("is-hidden", isFullscreen);
-    };
-    document.addEventListener("fullscreenchange", updateFullscreenState);
-    updateFullscreenState();
+    fullscreenController.registerGlobalButton(fullscreen);
   }
 
   if (config.features.showControls) {
     const stop = element("button", "secondary-button", "Stop");
     stop.type = "button";
     stop.addEventListener("click", () => {
+      fullscreenController.cleanup();
+      if (document.fullscreenElement) void document.exitFullscreen().catch(() => undefined);
       for (const active of activeStreams) {
         active.peer.stop();
         active.meter?.stop();
@@ -268,6 +294,120 @@ function createGlobalControls(config: RuntimeConfig, activeStreams: ActiveStream
   }
 
   return controls;
+}
+
+function createFullscreenController(config: RuntimeConfig, activeStreams: ActiveStream[], monitor: HTMLElement): FullscreenController {
+  let globalButton: HTMLButtonElement | null = null;
+  let focusedStream: ActiveStream | null = null;
+  let audioSnapshot: Map<ActiveStream, boolean> | null = null;
+
+  const sync = () => {
+    const fullscreenElement = document.fullscreenElement;
+    const fullscreenStream = findFullscreenStream(activeStreams);
+
+    monitor.classList.toggle("is-fullscreen", Boolean(fullscreenElement));
+    monitor.classList.toggle("is-stream-fullscreen", Boolean(fullscreenStream));
+
+    if (fullscreenStream) {
+      if (focusedStream !== fullscreenStream) {
+        if (!audioSnapshot) {
+          audioSnapshot = new Map(activeStreams.map((active) => [active, active.video.muted]));
+        }
+        focusedStream = fullscreenStream;
+      }
+      applyFocusedAudio(config, activeStreams, fullscreenStream);
+    } else {
+      if (focusedStream) {
+        restoreFocusedAudio(activeStreams, audioSnapshot);
+      }
+      focusedStream = null;
+      audioSnapshot = null;
+    }
+
+    updateGlobalFullscreenButton(globalButton, Boolean(fullscreenElement));
+    updateStreamFullscreenButtons(activeStreams, fullscreenStream);
+  };
+
+  document.addEventListener("fullscreenchange", sync);
+  sync();
+
+  return {
+    async toggleDocument() {
+      if (!isFullscreenSupported()) return;
+      if (document.fullscreenElement) {
+        await document.exitFullscreen().catch(() => undefined);
+        return;
+      }
+      await document.documentElement.requestFullscreen({ navigationUI: "hide" }).catch(() => undefined);
+    },
+    async toggleStream(active) {
+      if (!isFullscreenSupported()) return;
+      if (document.fullscreenElement === active.panel) {
+        await document.exitFullscreen().catch(() => undefined);
+        return;
+      }
+      await active.panel.requestFullscreen({ navigationUI: "hide" }).catch(() => undefined);
+    },
+    registerGlobalButton(button) {
+      globalButton = button;
+      updateGlobalFullscreenButton(globalButton, Boolean(document.fullscreenElement));
+    },
+    cleanup() {
+      document.removeEventListener("fullscreenchange", sync);
+      if (focusedStream) restoreFocusedAudio(activeStreams, audioSnapshot);
+      focusedStream = null;
+      audioSnapshot = null;
+      updateGlobalFullscreenButton(globalButton, false);
+      updateStreamFullscreenButtons(activeStreams, null);
+    },
+  };
+}
+
+function findFullscreenStream(activeStreams: ActiveStream[]): ActiveStream | null {
+  const fullscreenElement = document.fullscreenElement;
+  if (!fullscreenElement) return null;
+  return activeStreams.find((active) => fullscreenElement === active.panel || active.panel.contains(fullscreenElement)) ?? null;
+}
+
+function applyFocusedAudio(config: RuntimeConfig, activeStreams: ActiveStream[], fullscreenStream: ActiveStream): void {
+  for (const active of activeStreams) {
+    active.video.muted = config.audio.mode === "muted" || active !== fullscreenStream;
+    updateMuteButton(active);
+  }
+  void fullscreenStream.peer.unlockPlayback();
+}
+
+function restoreFocusedAudio(activeStreams: ActiveStream[], snapshot: Map<ActiveStream, boolean> | null): void {
+  if (!snapshot) return;
+  for (const active of activeStreams) {
+    const muted = snapshot.get(active);
+    if (muted === undefined) continue;
+    active.video.muted = muted;
+    updateMuteButton(active);
+  }
+}
+
+function updateGlobalFullscreenButton(button: HTMLButtonElement | null, isFullscreen: boolean): void {
+  if (!button) return;
+  button.textContent = isFullscreen ? "Exit fullscreen" : "Fullscreen";
+  button.setAttribute("aria-label", isFullscreen ? "Exit fullscreen" : "Fullscreen all streams");
+  button.classList.toggle("is-hidden", isFullscreen);
+}
+
+function updateStreamFullscreenButtons(activeStreams: ActiveStream[], fullscreenStream: ActiveStream | null): void {
+  for (const active of activeStreams) {
+    updateStreamFullscreenButton(active, active === fullscreenStream);
+  }
+}
+
+function updateStreamFullscreenButton(active: ActiveStream, isFullscreen: boolean): void {
+  if (!active.fullscreenButton) return;
+  active.fullscreenButton.textContent = isFullscreen ? "Exit" : "Fullscreen";
+  active.fullscreenButton.setAttribute(
+    "aria-label",
+    isFullscreen ? `Exit fullscreen for ${active.stream.label}` : `Fullscreen ${active.stream.label}`,
+  );
+  active.panel.classList.toggle("is-stream-fullscreen", isFullscreen);
 }
 
 function updateStatus(panel: HTMLElement, statusText: HTMLElement, update: StreamStatusUpdate): void {

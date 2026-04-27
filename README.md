@@ -17,11 +17,11 @@ That means an Envoy/Gateway route can send `/split/*` to this container while le
 ## Features
 
 - Multiple go2rtc streams in a split view.
-- Browser-mixed audio from all unmuted streams.
+- Browser-mixed audio from all unmuted streams, with per-stream fullscreen audio focus.
 - iPad-friendly start screen for Safari audio permissions.
 - Fullscreen PWA manifest served from the configured base path.
 - Auto reconnect with backoff.
-- Per-stream mute controls and optional audio meters.
+- Per-stream mute and fullscreen controls, plus optional audio meters.
 - Runtime configuration via environment variables.
 - Docker image build and GHCR publish workflow.
 
@@ -80,7 +80,7 @@ All configuration is read at container start and exposed to the browser through 
 | `SHOW_STATUS` | `true` | Reserved for status display. |
 | `NATIVE_VIDEO_CONTROLS` | `false` | Enable native browser video controls. |
 | `WAKE_LOCK` | `true` | Request screen wake lock where supported. |
-| `FULLSCREEN_BUTTON` | `true` | Show fullscreen button where supported. |
+| `FULLSCREEN_BUTTON` | `true` | Show global and per-stream fullscreen buttons where supported. |
 | `AUDIO_METERS` | `true` | Show per-stream audio meters. |
 | `AUDIO_UNLOCK_PROMPT` | `true` | Show a tap-to-enable-audio prompt if browser autoplay policy blocks playback. |
 | `RECONNECT_MIN_MS` | `1000` | Minimum reconnect backoff. |
