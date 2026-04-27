@@ -1,0 +1,25 @@
+{
+  "name": "go2rtc-split",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "description": "A small PWA for viewing multiple go2rtc streams with mixed browser audio.",
+  "scripts": {
+    "dev": "vite --host 0.0.0.0",
+    "preview": "npm run build && node dist/server/server.js",
+    "build": "vite build && tsc -p tsconfig.node.json",
+    "check": "tsc --noEmit && tsc -p tsconfig.node.json --noEmit",
+    "test": "vitest run",
+    "test:watch": "vitest"
+  },
+  "engines": {
+    "node": ">=22"
+  },
+  "dependencies": {},
+  "devDependencies": {
+    "@types/node": "^24.0.0",
+    "typescript": "^5.9.3",
+    "vite": "^7.1.12",
+    "vitest": "^3.2.4"
+  }
+}
