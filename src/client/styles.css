@@ -204,6 +204,10 @@ h1 {
   padding: 10px;
 }
 
+.monitor.has-global-controls .video-grid {
+  padding-bottom: calc(82px + var(--safe-bottom));
+}
+
 .layout-stack .video-grid,
 .layout-auto .video-grid {
   grid-template-columns: 1fr;
@@ -403,6 +407,10 @@ h1 {
   .video-grid {
     gap: 7px;
     padding: 7px;
+  }
+
+  .monitor.has-global-controls .video-grid {
+    padding-bottom: calc(74px + var(--safe-bottom));
   }
 
   .stream-panel {

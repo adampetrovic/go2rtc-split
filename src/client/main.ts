@@ -83,6 +83,9 @@ async function startMonitor(config: RuntimeConfig): Promise<void> {
 
   const audioContext = await createAudioContext(config);
   const monitor = element("main", `monitor layout-${config.layout}`);
+  if (config.features.showControls) {
+    monitor.classList.add("has-global-controls");
+  }
   monitor.style.setProperty("--video-fit", config.objectFit);
 
   const grid = element("section", "video-grid");
