@@ -130,10 +130,20 @@ The existing go2rtc route should remain as the catch-all for the same hostname.
 ## CI and publishing
 
 - `.github/workflows/ci.yaml` runs type checks, tests, and a production build.
-- `.github/workflows/container.yaml` builds the Docker image on pull requests and publishes to GHCR on pushes to `main` or version tags.
+- `.github/workflows/container.yaml` builds the Docker image on pull requests and publishes to GHCR on pushes to `main` or SemVer tags.
 
 Published image name:
 
 ```text
 ghcr.io/<owner>/go2rtc-split
 ```
+
+Versioned releases use SemVer tags in the form `vMAJOR.MINOR.PATCH`, for example `v0.1.0`. Pushing a SemVer tag publishes matching container tags:
+
+```text
+ghcr.io/<owner>/go2rtc-split:v0.1.0
+ghcr.io/<owner>/go2rtc-split:0.1.0
+ghcr.io/<owner>/go2rtc-split:0.1
+```
+
+The `latest` tag is only published from the default branch.
