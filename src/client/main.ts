@@ -8,7 +8,7 @@ interface ActiveStream {
   panel: HTMLElement;
   statusText: HTMLElement;
   video: HTMLVideoElement;
-  muteButton: HTMLButtonElement;
+  muteButton?: HTMLButtonElement;
   meter: AudioMeter | null;
   peer: Go2rtcPeer;
 }
@@ -83,7 +83,7 @@ async function startMonitor(config: RuntimeConfig): Promise<void> {
 
   let audioContext: AudioContext | null = null;
   const monitor = element("main", `monitor layout-${config.layout}`);
-  if (config.features.showControls) {
+  if (hasGlobalControls(config)) {
     monitor.classList.add("has-global-controls");
   }
   monitor.style.setProperty("--video-fit", config.objectFit);
@@ -98,6 +98,7 @@ async function startMonitor(config: RuntimeConfig): Promise<void> {
 
   for (const stream of config.streams) {
     const active = createStreamPanel(stream, config, audioContext, () => {
+      if (!config.features.audioUnlockPrompt) return;
       monitor.classList.add("audio-needs-unlock");
       audioBlocked.classList.add("is-visible");
     });
@@ -107,8 +108,9 @@ async function startMonitor(config: RuntimeConfig): Promise<void> {
 
   monitor.append(grid);
 
-  if (config.features.showControls) {
-    monitor.append(createGlobalControls(config, activeStreams));
+  const globalControls = createGlobalControls(config, activeStreams, monitor);
+  if (globalControls.childElementCount > 0) {
+    monitor.append(globalControls);
   }
 
   monitor.append(audioBlocked);
@@ -128,6 +130,10 @@ async function startMonitor(config: RuntimeConfig): Promise<void> {
     }
     void audioContext?.resume().catch(() => undefined);
   });
+
+  for (const active of activeStreams) {
+    void active.peer.unlockPlayback();
+  }
 
   await requestWakeLock(config);
 
@@ -169,20 +175,25 @@ function createStreamPanel(
   const meterElement = element("div", "audio-meter");
   meterElement.append(element("span"));
   const actions = element("div", "panel-actions");
-  const muteButton = element("button", "icon-button");
-  muteButton.type = "button";
-  actions.append(muteButton);
-  bottom.append(meterElement, actions);
-
-  if (!config.features.audioMeters) {
-    meterElement.classList.add("is-hidden");
+  const muteButton = config.features.showControls ? element("button", "icon-button") : undefined;
+  if (muteButton) {
+    muteButton.type = "button";
+    actions.append(muteButton);
   }
 
-  if (!config.features.showControls) {
-    actions.classList.add("is-hidden");
+  if (config.features.audioMeters) {
+    bottom.append(meterElement);
+  }
+  if (config.features.showControls) {
+    bottom.append(actions);
   }
 
-  panel.append(video, top, bottom);
+  panel.append(video, top);
+  if (bottom.childElementCount > 0) {
+    panel.append(bottom);
+  }
+
+  attachViewportGestures(panel, video);
 
   const meter = config.features.audioMeters ? new AudioMeter(meterElement) : null;
 
@@ -196,7 +207,7 @@ function createStreamPanel(
 
   const active: ActiveStream = { stream, panel, statusText, video, muteButton, meter, peer };
 
-  muteButton.addEventListener("click", () => {
+  muteButton?.addEventListener("click", () => {
     video.muted = !video.muted;
     updateMuteButton(active);
   });
@@ -205,23 +216,25 @@ function createStreamPanel(
   return active;
 }
 
-function createGlobalControls(config: RuntimeConfig, activeStreams: ActiveStream[]): HTMLElement {
+function createGlobalControls(config: RuntimeConfig, activeStreams: ActiveStream[], monitor: HTMLElement): HTMLElement {
   const controls = element("nav", "global-controls");
 
-  const muteAll = element("button", "secondary-button", "Mute all");
-  muteAll.type = "button";
-  muteAll.addEventListener("click", () => {
-    const shouldMute = activeStreams.some((active) => !active.video.muted);
-    for (const active of activeStreams) {
-      active.video.muted = shouldMute;
-      updateMuteButton(active);
-    }
-    muteAll.textContent = shouldMute ? "Listen all" : "Mute all";
-  });
-  controls.append(muteAll);
+  if (config.features.showControls) {
+    const muteAll = element("button", "secondary-button", "Mute all");
+    muteAll.type = "button";
+    muteAll.addEventListener("click", () => {
+      const shouldMute = activeStreams.some((active) => !active.video.muted);
+      for (const active of activeStreams) {
+        active.video.muted = shouldMute;
+        updateMuteButton(active);
+      }
+      muteAll.textContent = shouldMute ? "Listen all" : "Mute all";
+    });
+    controls.append(muteAll);
+  }
 
-  if (config.features.fullscreenButton && document.fullscreenEnabled) {
-    const fullscreen = element("button", "secondary-button", "Fullscreen");
+  if (config.features.fullscreenButton && isFullscreenSupported()) {
+    const fullscreen = element("button", "secondary-button fullscreen-button", "Fullscreen");
     fullscreen.type = "button";
     fullscreen.addEventListener("click", () => {
       if (document.fullscreenElement) {
@@ -231,18 +244,28 @@ function createGlobalControls(config: RuntimeConfig, activeStreams: ActiveStream
       }
     });
     controls.append(fullscreen);
+
+    const updateFullscreenState = () => {
+      const isFullscreen = Boolean(document.fullscreenElement);
+      monitor.classList.toggle("is-fullscreen", isFullscreen);
+      fullscreen.classList.toggle("is-hidden", isFullscreen);
+    };
+    document.addEventListener("fullscreenchange", updateFullscreenState);
+    updateFullscreenState();
   }
 
-  const stop = element("button", "secondary-button", "Stop");
-  stop.type = "button";
-  stop.addEventListener("click", () => {
-    for (const active of activeStreams) {
-      active.peer.stop();
-      active.meter?.stop();
-    }
-    renderStart(config);
-  });
-  controls.append(stop);
+  if (config.features.showControls) {
+    const stop = element("button", "secondary-button", "Stop");
+    stop.type = "button";
+    stop.addEventListener("click", () => {
+      for (const active of activeStreams) {
+        active.peer.stop();
+        active.meter?.stop();
+      }
+      renderStart(config);
+    });
+    controls.append(stop);
+  }
 
   return controls;
 }
@@ -255,8 +278,150 @@ function updateStatus(panel: HTMLElement, statusText: HTMLElement, update: Strea
 }
 
 function updateMuteButton(active: ActiveStream): void {
+  if (!active.muteButton) return;
   active.muteButton.textContent = active.video.muted ? "Listen" : "Mute";
   active.muteButton.setAttribute("aria-label", `${active.video.muted ? "Listen to" : "Mute"} ${active.stream.label}`);
+}
+
+function hasGlobalControls(config: RuntimeConfig): boolean {
+  return config.features.showControls || (config.features.fullscreenButton && isFullscreenSupported());
+}
+
+function isFullscreenSupported(): boolean {
+  return document.fullscreenEnabled && typeof document.documentElement.requestFullscreen === "function";
+}
+
+function attachViewportGestures(panel: HTMLElement, video: HTMLVideoElement): void {
+  const state = {
+    scale: 1,
+    x: 0,
+    y: 0,
+    startScale: 1,
+    startX: 0,
+    startY: 0,
+    startDistance: 0,
+    startCenter: { x: 0, y: 0 },
+    pointers: new Map<number, { x: number; y: number }>(),
+    lastTap: 0,
+  };
+
+  const apply = () => {
+    const clamped = clampPan(panel, state.scale, state.x, state.y);
+    state.x = clamped.x;
+    state.y = clamped.y;
+    video.style.transform = `translate3d(${state.x}px, ${state.y}px, 0) scale(${state.scale})`;
+    panel.classList.toggle("is-zoomed", state.scale > 1.01);
+  };
+
+  const reset = () => {
+    state.scale = 1;
+    state.x = 0;
+    state.y = 0;
+    apply();
+  };
+
+  panel.addEventListener("pointerdown", (event) => {
+    if ((event.target as HTMLElement).closest("button")) return;
+    event.preventDefault();
+    try {
+      panel.setPointerCapture(event.pointerId);
+    } catch {
+      // Synthetic tests and some browser edge cases can lack an active pointer capture target.
+    }
+    state.pointers.set(event.pointerId, { x: event.clientX, y: event.clientY });
+
+    const now = Date.now();
+    if (state.pointers.size === 1 && now - state.lastTap < 280) {
+      reset();
+      state.lastTap = 0;
+      return;
+    }
+    state.lastTap = now;
+
+    state.startScale = state.scale;
+    state.startX = state.x;
+    state.startY = state.y;
+    state.startDistance = pointerDistance(state.pointers);
+    state.startCenter = pointerCenter(state.pointers);
+  });
+
+  panel.addEventListener("pointermove", (event) => {
+    if (!state.pointers.has(event.pointerId)) return;
+    event.preventDefault();
+    state.pointers.set(event.pointerId, { x: event.clientX, y: event.clientY });
+
+    if (state.pointers.size >= 2) {
+      const distance = pointerDistance(state.pointers);
+      const center = pointerCenter(state.pointers);
+      const nextScale = state.startDistance > 0 ? state.startScale * (distance / state.startDistance) : state.scale;
+      state.scale = clamp(nextScale, 1, 6);
+      state.x = state.startX + center.x - state.startCenter.x;
+      state.y = state.startY + center.y - state.startCenter.y;
+      apply();
+      return;
+    }
+
+    if (state.scale <= 1) return;
+    const point = [...state.pointers.values()][0];
+    state.x = state.startX + point.x - state.startCenter.x;
+    state.y = state.startY + point.y - state.startCenter.y;
+    apply();
+  });
+
+  const endPointer = (event: PointerEvent) => {
+    if (!state.pointers.has(event.pointerId)) return;
+    state.pointers.delete(event.pointerId);
+    if (state.pointers.size > 0) {
+      state.startScale = state.scale;
+      state.startX = state.x;
+      state.startY = state.y;
+      state.startDistance = pointerDistance(state.pointers);
+      state.startCenter = pointerCenter(state.pointers);
+    }
+  };
+
+  panel.addEventListener("pointerup", endPointer);
+  panel.addEventListener("pointercancel", endPointer);
+  panel.addEventListener("dblclick", (event) => {
+    event.preventDefault();
+    reset();
+  });
+  panel.addEventListener(
+    "wheel",
+    (event) => {
+      if (!event.ctrlKey && !event.metaKey) return;
+      event.preventDefault();
+      state.scale = clamp(state.scale - event.deltaY * 0.01, 1, 6);
+      apply();
+    },
+    { passive: false },
+  );
+}
+
+function pointerDistance(pointers: Map<number, { x: number; y: number }>): number {
+  const values = [...pointers.values()];
+  if (values.length < 2) return 0;
+  return Math.hypot(values[0].x - values[1].x, values[0].y - values[1].y);
+}
+
+function pointerCenter(pointers: Map<number, { x: number; y: number }>): { x: number; y: number } {
+  const values = [...pointers.values()];
+  if (values.length === 0) return { x: 0, y: 0 };
+  const sum = values.reduce((acc, point) => ({ x: acc.x + point.x, y: acc.y + point.y }), { x: 0, y: 0 });
+  return { x: sum.x / values.length, y: sum.y / values.length };
+}
+
+function clampPan(panel: HTMLElement, scale: number, x: number, y: number): { x: number; y: number } {
+  const maxX = Math.max(0, (panel.clientWidth * (scale - 1)) / 2);
+  const maxY = Math.max(0, (panel.clientHeight * (scale - 1)) / 2);
+  return {
+    x: clamp(x, -maxX, maxX),
+    y: clamp(y, -maxY, maxY),
+  };
+}
+
+function clamp(value: number, min: number, max: number): number {
+  return Math.min(max, Math.max(min, value));
 }
 
 async function createAudioContext(config: RuntimeConfig): Promise<AudioContext | null> {

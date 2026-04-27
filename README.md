@@ -82,6 +82,7 @@ All configuration is read at container start and exposed to the browser through 
 | `WAKE_LOCK` | `true` | Request screen wake lock where supported. |
 | `FULLSCREEN_BUTTON` | `true` | Show fullscreen button where supported. |
 | `AUDIO_METERS` | `true` | Show per-stream audio meters. |
+| `AUDIO_UNLOCK_PROMPT` | `true` | Show a tap-to-enable-audio prompt if browser autoplay policy blocks playback. |
 | `RECONNECT_MIN_MS` | `1000` | Minimum reconnect backoff. |
 | `RECONNECT_MAX_MS` | `15000` | Maximum reconnect backoff. |
 | `ICE_SERVERS` | Cloudflare and Google STUN | Comma-separated ICE server URLs, or a JSON `RTCIceServer[]`. |

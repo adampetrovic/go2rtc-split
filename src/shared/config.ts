@@ -52,6 +52,7 @@ export interface RuntimeConfig {
     wakeLock: boolean;
     fullscreenButton: boolean;
     audioMeters: boolean;
+    audioUnlockPrompt: boolean;
   };
 }
 
@@ -89,6 +90,7 @@ export const DEFAULT_RUNTIME_CONFIG: RuntimeConfig = {
     wakeLock: true,
     fullscreenButton: true,
     audioMeters: true,
+    audioUnlockPrompt: true,
   },
 };
 
