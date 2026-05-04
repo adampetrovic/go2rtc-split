@@ -32,6 +32,17 @@ describe("runtime config", () => {
     expect(parseBoolean("maybe", true)).toBe(true);
   });
 
+  it("configures fullscreen controls independently", () => {
+    const config = buildRuntimeConfig({
+      FULLSCREEN_BUTTON: "true",
+      DOCUMENT_FULLSCREEN_BUTTON: "false",
+      STREAM_FULLSCREEN_BUTTON: "true",
+    });
+    expect(config.features.fullscreenButton).toBe(true);
+    expect(config.features.documentFullscreenButton).toBe(false);
+    expect(config.features.streamFullscreenButton).toBe(true);
+  });
+
   it("builds same-origin go2rtc websocket URLs", () => {
     const config = buildRuntimeConfig({ GO2RTC_QUERY: "media=video+audio" });
     const url = resolveWsUrl(config, "stream_a", { protocol: "https:", origin: "https://go2rtc.example.test" });

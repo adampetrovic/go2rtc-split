@@ -54,6 +54,8 @@ export function buildRuntimeConfig(env: Env = process.env): RuntimeConfig {
       nativeVideoControls: parseBoolean(env.NATIVE_VIDEO_CONTROLS, defaults.features.nativeVideoControls),
       wakeLock: parseBoolean(env.WAKE_LOCK, defaults.features.wakeLock),
       fullscreenButton: parseBoolean(env.FULLSCREEN_BUTTON, defaults.features.fullscreenButton),
+      documentFullscreenButton: parseBoolean(env.DOCUMENT_FULLSCREEN_BUTTON, defaults.features.documentFullscreenButton),
+      streamFullscreenButton: parseBoolean(env.STREAM_FULLSCREEN_BUTTON, defaults.features.streamFullscreenButton),
       audioMeters: parseBoolean(env.AUDIO_METERS, defaults.features.audioMeters),
       audioUnlockPrompt: parseBoolean(env.AUDIO_UNLOCK_PROMPT, defaults.features.audioUnlockPrompt),
     },

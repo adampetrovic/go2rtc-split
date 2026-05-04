@@ -17,11 +17,13 @@ That means an Envoy/Gateway route can send `/split/*` to this container while le
 ## Features
 
 - Multiple go2rtc streams in a split view.
-- Browser-mixed audio from all unmuted streams, with per-stream fullscreen audio focus.
+- Browser-mixed audio from all unmuted streams, with per-stream focus audio.
 - iPad-friendly start screen for Safari audio permissions.
 - Fullscreen PWA manifest served from the configured base path.
+- PWA-safe per-stream focus mode that does not require the browser Fullscreen API.
+- Pinch or pointer zoom and pan per stream for framing.
 - Auto reconnect with backoff.
-- Per-stream mute and fullscreen controls, plus optional audio meters.
+- Optional mute controls, browser fullscreen controls, stream focus controls, and audio meters.
 - Runtime configuration via environment variables.
 - Docker image build and GHCR publish workflow.
 
@@ -55,6 +57,14 @@ docker run --rm -p 8080:8080 \
   go2rtc-split
 ```
 
+## UX model
+
+- Split view shows every configured stream.
+- Per-stream **Full screen** buttons enter focus mode. In installed PWA mode this is an in-app fullscreen fallback; in browsers that support native fullscreen the stream can also enter browser fullscreen.
+- In focus mode, the active stream fills the app and its button changes to **Split view**.
+- Pinch a stream to zoom it, drag while zoomed to reframe it, and double-tap to reset the crop.
+- If `DOCUMENT_FULLSCREEN_BUTTON=true`, non-PWA browsers also get a global browser-fullscreen button.
+
 ## Configuration
 
 All configuration is read at container start and exposed to the browser through `<BASE_PATH>/config.json`.
@@ -80,7 +90,9 @@ All configuration is read at container start and exposed to the browser through 
 | `SHOW_STATUS` | `true` | Reserved for status display. |
 | `NATIVE_VIDEO_CONTROLS` | `false` | Enable native browser video controls. |
 | `WAKE_LOCK` | `true` | Request screen wake lock where supported. |
-| `FULLSCREEN_BUTTON` | `true` | Show global and per-stream fullscreen buttons where supported. |
+| `FULLSCREEN_BUTTON` | `true` | Master switch for fullscreen/focus controls. |
+| `DOCUMENT_FULLSCREEN_BUTTON` | `true` | Show the global browser fullscreen button when supported. |
+| `STREAM_FULLSCREEN_BUTTON` | `true` | Show per-stream focus/fullscreen buttons, including PWA fallback focus mode. |
 | `AUDIO_METERS` | `true` | Show per-stream audio meters. |
 | `AUDIO_UNLOCK_PROMPT` | `true` | Show a tap-to-enable-audio prompt if browser autoplay policy blocks playback. |
 | `RECONNECT_MIN_MS` | `1000` | Minimum reconnect backoff. |

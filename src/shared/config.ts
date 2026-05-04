@@ -51,6 +51,8 @@ export interface RuntimeConfig {
     nativeVideoControls: boolean;
     wakeLock: boolean;
     fullscreenButton: boolean;
+    documentFullscreenButton: boolean;
+    streamFullscreenButton: boolean;
     audioMeters: boolean;
     audioUnlockPrompt: boolean;
   };
@@ -89,6 +91,8 @@ export const DEFAULT_RUNTIME_CONFIG: RuntimeConfig = {
     nativeVideoControls: false,
     wakeLock: true,
     fullscreenButton: true,
+    documentFullscreenButton: true,
+    streamFullscreenButton: true,
     audioMeters: true,
     audioUnlockPrompt: true,
   },
