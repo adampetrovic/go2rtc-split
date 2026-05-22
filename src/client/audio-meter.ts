@@ -33,6 +33,12 @@ export class AudioMeter {
     this.tick();
   }
 
+  async resume(): Promise<void> {
+    if (this.context && this.context.state !== "closed" && this.context.state !== "running") {
+      await this.context.resume().catch(() => undefined);
+    }
+  }
+
   stop(): void {
     window.cancelAnimationFrame(this.animationFrame);
     this.animationFrame = 0;

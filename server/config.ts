@@ -21,6 +21,9 @@ export function buildRuntimeConfig(env: Env = process.env): RuntimeConfig {
   const defaults = DEFAULT_RUNTIME_CONFIG;
   const minReconnect = Math.round(parseNumber(env.RECONNECT_MIN_MS, defaults.reconnect.minMs, { min: 250, max: 60_000 }));
   const maxReconnect = Math.round(parseNumber(env.RECONNECT_MAX_MS, defaults.reconnect.maxMs, { min: minReconnect, max: 120_000 }));
+  const sleepRecoveryReconnectAfterMs = Math.round(
+    parseNumber(env.SLEEP_RECOVERY_RECONNECT_MS, defaults.recovery.reconnectAfterMs, { min: 0, max: 3_600_000 }),
+  );
   const audioMode = parseEnum(env.AUDIO_MODE, AUDIO_MODE_VALUES, defaults.audio.mode);
 
   return {
@@ -45,6 +48,9 @@ export function buildRuntimeConfig(env: Env = process.env): RuntimeConfig {
       minMs: minReconnect,
       maxMs: maxReconnect,
     },
+    recovery: {
+      reconnectAfterMs: sleepRecoveryReconnectAfterMs,
+    },
     rtc: {
       iceServers: parseIceServers(env.ICE_SERVERS, defaults.rtc.iceServers),
     },
@@ -58,6 +64,7 @@ export function buildRuntimeConfig(env: Env = process.env): RuntimeConfig {
       streamFullscreenButton: parseBoolean(env.STREAM_FULLSCREEN_BUTTON, defaults.features.streamFullscreenButton),
       audioMeters: parseBoolean(env.AUDIO_METERS, defaults.features.audioMeters),
       audioUnlockPrompt: parseBoolean(env.AUDIO_UNLOCK_PROMPT, defaults.features.audioUnlockPrompt),
+      sleepRecovery: parseBoolean(env.SLEEP_RECOVERY, defaults.features.sleepRecovery),
     },
   };
 }

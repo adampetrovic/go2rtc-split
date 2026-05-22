@@ -21,6 +21,16 @@ interface FullscreenController {
   cleanup: () => void;
 }
 
+interface SleepRecoveryOptions {
+  forceReconnect?: boolean;
+  reason?: string;
+}
+
+interface SleepRecoveryController {
+  recover: (options?: SleepRecoveryOptions) => Promise<void>;
+  cleanup: () => void;
+}
+
 const app = getAppRoot();
 
 void boot();
@@ -89,7 +99,7 @@ function renderStart(config: RuntimeConfig): void {
 async function startMonitor(config: RuntimeConfig): Promise<void> {
   app.replaceChildren();
 
-  let audioContext: AudioContext | null = null;
+  const audioContext = await createAudioContext(config);
   const monitor = element("main", `monitor layout-${config.layout}`);
   if (hasGlobalControls(config)) {
     monitor.classList.add("has-global-controls");
@@ -126,17 +136,30 @@ async function startMonitor(config: RuntimeConfig): Promise<void> {
   monitor.append(grid);
 
   fullscreenController = createFullscreenController(config, activeStreams, monitor);
-  const globalControls = createGlobalControls(config, activeStreams, fullscreenController);
+  const recoveryController = createSleepRecoveryController(config, activeStreams, audioContext);
+  const stopMonitor = () => {
+    recoveryController.cleanup();
+    fullscreenController?.cleanup();
+    if (document.fullscreenElement) void document.exitFullscreen().catch(() => undefined);
+    for (const active of activeStreams) {
+      active.peer.stop();
+      active.meter?.stop();
+    }
+    renderStart(config);
+  };
+  const globalControls = createGlobalControls(
+    config,
+    activeStreams,
+    fullscreenController,
+    () => recoveryController.recover({ forceReconnect: true, reason: "Manual audio recovery" }),
+    stopMonitor,
+  );
   if (globalControls.childElementCount > 0) {
     monitor.append(globalControls);
   }
 
   monitor.append(audioBlocked);
   app.append(monitor);
-
-  void createAudioContext(config).then((context) => {
-    audioContext = context;
-  });
 
   audioBlockedButton.addEventListener("click", () => {
     monitor.classList.remove("audio-needs-unlock");
@@ -257,7 +280,13 @@ function createStreamPanel(
   return active;
 }
 
-function createGlobalControls(config: RuntimeConfig, activeStreams: ActiveStream[], fullscreenController: FullscreenController): HTMLElement {
+function createGlobalControls(
+  config: RuntimeConfig,
+  activeStreams: ActiveStream[],
+  fullscreenController: FullscreenController,
+  onRecoverPlayback: () => Promise<void>,
+  onStop: () => void,
+): HTMLElement {
   const controls = element("nav", "global-controls");
 
   if (config.features.showControls) {
@@ -272,6 +301,15 @@ function createGlobalControls(config: RuntimeConfig, activeStreams: ActiveStream
       muteAll.textContent = shouldMute ? "Listen all" : "Mute all";
     });
     controls.append(muteAll);
+
+    if (config.features.sleepRecovery) {
+      const recover = element("button", "secondary-button", "Recover audio");
+      recover.type = "button";
+      recover.addEventListener("click", () => {
+        void onRecoverPlayback();
+      });
+      controls.append(recover);
+    }
   }
 
   if (config.features.fullscreenButton && config.features.documentFullscreenButton && isFullscreenSupported()) {
@@ -287,19 +325,109 @@ function createGlobalControls(config: RuntimeConfig, activeStreams: ActiveStream
   if (config.features.showControls) {
     const stop = element("button", "secondary-button", "Stop");
     stop.type = "button";
-    stop.addEventListener("click", () => {
-      fullscreenController.cleanup();
-      if (document.fullscreenElement) void document.exitFullscreen().catch(() => undefined);
-      for (const active of activeStreams) {
-        active.peer.stop();
-        active.meter?.stop();
-      }
-      renderStart(config);
-    });
+    stop.addEventListener("click", onStop);
     controls.append(stop);
   }
 
   return controls;
+}
+
+function createSleepRecoveryController(config: RuntimeConfig, activeStreams: ActiveStream[], audioContext: AudioContext | null): SleepRecoveryController {
+  const shouldListen = config.features.sleepRecovery || config.features.wakeLock;
+  let hiddenAt = document.visibilityState === "hidden" ? Date.now() : 0;
+  let pendingTimer = 0;
+  let pendingForceReconnect = false;
+  let pendingReason = "App resumed";
+  let disposed = false;
+
+  const recover = async (options: SleepRecoveryOptions = {}) => {
+    if (disposed) return;
+
+    await requestWakeLock(config);
+
+    if (!config.features.sleepRecovery) return;
+
+    const forceReconnect = Boolean(options.forceReconnect);
+    const reason = options.reason ?? "Playback recovery";
+
+    await resumeAudioContext(audioContext);
+    await Promise.all(activeStreams.map((active) => active.meter?.resume() ?? Promise.resolve()));
+
+    if (forceReconnect) {
+      for (const active of activeStreams) {
+        active.peer.restart(reason);
+      }
+    }
+
+    await Promise.all(activeStreams.map((active) => active.peer.unlockPlayback()));
+  };
+
+  const scheduleRecovery = (forceReconnect: boolean, reason: string) => {
+    if (!shouldListen || disposed) return;
+
+    pendingForceReconnect ||= forceReconnect;
+    if (forceReconnect || pendingReason === "App resumed") {
+      pendingReason = reason;
+    }
+
+    window.clearTimeout(pendingTimer);
+    pendingTimer = window.setTimeout(() => {
+      pendingTimer = 0;
+      const forceReconnectNow = pendingForceReconnect;
+      const reasonNow = pendingReason;
+      pendingForceReconnect = false;
+      pendingReason = "App resumed";
+      void recover({ forceReconnect: forceReconnectNow, reason: reasonNow });
+    }, 250);
+  };
+
+  const resumeFromHidden = (reason: string, forceReconnect: boolean) => {
+    const wasHidden = hiddenAt > 0;
+    const hiddenFor = wasHidden ? Date.now() - hiddenAt : 0;
+    hiddenAt = 0;
+
+    const shouldReconnect = forceReconnect || (wasHidden && hiddenFor >= config.recovery.reconnectAfterMs);
+    const recoveryReason = shouldReconnect && wasHidden ? `${reason} after ${formatDuration(hiddenFor)}` : reason;
+    scheduleRecovery(shouldReconnect, recoveryReason);
+  };
+
+  const onVisibilityChange = () => {
+    if (document.visibilityState === "hidden") {
+      hiddenAt = Date.now();
+      return;
+    }
+
+    if (document.visibilityState === "visible") {
+      resumeFromHidden("App resumed", false);
+    }
+  };
+
+  const onPageShow = (event: PageTransitionEvent) => {
+    resumeFromHidden(event.persisted ? "Page restored" : "Page shown", event.persisted);
+  };
+
+  const onFocus = () => {
+    if (document.visibilityState === "visible") {
+      scheduleRecovery(false, "Window focused");
+    }
+  };
+
+  if (shouldListen) {
+    document.addEventListener("visibilitychange", onVisibilityChange);
+    window.addEventListener("pageshow", onPageShow);
+    window.addEventListener("focus", onFocus);
+  }
+
+  return {
+    recover,
+    cleanup() {
+      disposed = true;
+      window.clearTimeout(pendingTimer);
+      document.removeEventListener("visibilitychange", onVisibilityChange);
+      window.removeEventListener("pageshow", onPageShow);
+      window.removeEventListener("focus", onFocus);
+    },
+  };
 }
 
 function createFullscreenController(config: RuntimeConfig, activeStreams: ActiveStream[], monitor: HTMLElement): FullscreenController {
@@ -610,20 +738,29 @@ async function createAudioContext(config: RuntimeConfig): Promise<AudioContext |
   }
 }
 
+async function resumeAudioContext(context: AudioContext | null): Promise<void> {
+  if (!context || context.state === "closed" || context.state === "running") return;
+  await context.resume().catch(() => undefined);
+}
+
 async function requestWakeLock(config: RuntimeConfig): Promise<void> {
   if (!config.features.wakeLock || !("wakeLock" in navigator)) return;
 
   try {
     await navigator.wakeLock.request("screen");
   } catch {
-    return;
+    // iOS Safari and some PWA contexts do not expose or grant wake locks.
   }
+}
 
-  document.addEventListener("visibilitychange", () => {
-    if (document.visibilityState === "visible") {
-      void navigator.wakeLock.request("screen").catch(() => undefined);
-    }
-  });
+function formatDuration(ms: number): string {
+  const seconds = Math.max(0, Math.round(ms / 1_000));
+  if (seconds < 90) return `${seconds}s`;
+
+  const minutes = Math.round(seconds / 60);
+  if (minutes < 90) return `${minutes}m`;
+
+  return `${(minutes / 60).toFixed(1).replace(/\.0$/, "")}h`;
 }
 
 function renderFatal(message: string): void {

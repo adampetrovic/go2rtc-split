@@ -44,11 +44,19 @@ export class Go2rtcPeer {
     window.clearTimeout(this.reconnectTimer);
     this.reconnectTimer = 0;
     this.closeConnections();
-    for (const track of this.mediaStream.getTracks()) {
-      track.stop();
-      this.mediaStream.removeTrack(track);
-    }
+    this.clearMediaStream();
     this.callbacks.onStatus({ status: "closed" });
+  }
+
+  restart(detail = "Restarting stream"): void {
+    if (this.stopped) return;
+
+    window.clearTimeout(this.reconnectTimer);
+    this.reconnectTimer = 0;
+    this.reconnectAttempt = 0;
+    this.callbacks.onStatus({ status: "reconnecting", detail });
+    this.clearMediaStream();
+    this.connect();
   }
 
   setMuted(muted: boolean): void {
@@ -190,6 +198,7 @@ export class Go2rtcPeer {
 
     this.callbacks.onStatus({ status: "reconnecting", detail });
     this.closeConnections();
+    this.clearMediaStream();
 
     const delay = reconnectDelay(this.reconnectAttempt, this.config.reconnect.minMs, this.config.reconnect.maxMs);
     this.reconnectAttempt += 1;
@@ -217,6 +226,13 @@ export class Go2rtcPeer {
       this.pc.onconnectionstatechange = null;
       this.pc.close();
       this.pc = null;
+    }
+  }
+
+  private clearMediaStream(): void {
+    for (const track of this.mediaStream.getTracks()) {
+      track.stop();
+      this.mediaStream.removeTrack(track);
     }
   }
 

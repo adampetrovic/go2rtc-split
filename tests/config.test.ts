@@ -43,6 +43,15 @@ describe("runtime config", () => {
     expect(config.features.streamFullscreenButton).toBe(true);
   });
 
+  it("configures sleep recovery", () => {
+    const config = buildRuntimeConfig({
+      SLEEP_RECOVERY: "false",
+      SLEEP_RECOVERY_RECONNECT_MS: "45000",
+    });
+    expect(config.features.sleepRecovery).toBe(false);
+    expect(config.recovery.reconnectAfterMs).toBe(45_000);
+  });
+
   it("builds same-origin go2rtc websocket URLs", () => {
     const config = buildRuntimeConfig({ GO2RTC_QUERY: "media=video+audio" });
     const url = resolveWsUrl(config, "stream_a", { protocol: "https:", origin: "https://go2rtc.example.test" });

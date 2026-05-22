@@ -42,6 +42,9 @@ export interface RuntimeConfig {
     minMs: number;
     maxMs: number;
   };
+  recovery: {
+    reconnectAfterMs: number;
+  };
   rtc: {
     iceServers: IceServerConfig[];
   };
@@ -55,6 +58,7 @@ export interface RuntimeConfig {
     streamFullscreenButton: boolean;
     audioMeters: boolean;
     audioUnlockPrompt: boolean;
+    sleepRecovery: boolean;
   };
 }
 
@@ -82,6 +86,9 @@ export const DEFAULT_RUNTIME_CONFIG: RuntimeConfig = {
     minMs: 1_000,
     maxMs: 15_000,
   },
+  recovery: {
+    reconnectAfterMs: 30_000,
+  },
   rtc: {
     iceServers: [{ urls: ["stun:stun.cloudflare.com:3478", "stun:stun.l.google.com:19302"] }],
   },
@@ -95,6 +102,7 @@ export const DEFAULT_RUNTIME_CONFIG: RuntimeConfig = {
     streamFullscreenButton: true,
     audioMeters: true,
     audioUnlockPrompt: true,
+    sleepRecovery: true,
   },
 };
 

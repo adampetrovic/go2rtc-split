@@ -95,6 +95,8 @@ All configuration is read at container start and exposed to the browser through 
 | `STREAM_FULLSCREEN_BUTTON` | `true` | Show per-stream focus/fullscreen buttons, including PWA fallback focus mode. |
 | `AUDIO_METERS` | `true` | Show per-stream audio meters. |
 | `AUDIO_UNLOCK_PROMPT` | `true` | Show a tap-to-enable-audio prompt if browser autoplay policy blocks playback. |
+| `SLEEP_RECOVERY` | `true` | On return from lock/background, resume audio contexts, retry playback, and optionally restart streams. |
+| `SLEEP_RECOVERY_RECONNECT_MS` | `30000` | Restart all WebRTC streams after the app has been hidden for at least this long. Set `0` to reconnect on every resume. |
 | `RECONNECT_MIN_MS` | `1000` | Minimum reconnect backoff. |
 | `RECONNECT_MAX_MS` | `15000` | Maximum reconnect backoff. |
 | `ICE_SERVERS` | Cloudflare and Google STUN | Comma-separated ICE server URLs, or a JSON `RTCIceServer[]`. |
