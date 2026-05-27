@@ -1,27 +1,21 @@
-@font-face {
-  font-family: "Split Sans";
-  src: local("Avenir Next"), local("Helvetica Neue"), local("Arial");
-  font-display: swap;
-}
-
 :root {
   color-scheme: dark;
-  --bg: #101010;
-  --panel: #171715;
-  --panel-raised: #201f1b;
-  --text: #f2eee4;
-  --muted: #a7a194;
-  --line: rgba(242, 238, 228, 0.13);
-  --accent: #7f967a;
-  --accent-strong: #adc2a5;
+  --bg: #111;
+  --panel: #181818;
+  --panel-raised: #202020;
+  --text: #eeeeee;
+  --muted: #999999;
+  --line: #333333;
+  --accent: #3b82f6;
+  --accent-strong: #60a5fa;
   --danger: #c97f6f;
   --warning: #cfaa69;
-  --radius: 22px;
+  --radius: 12px;
   --safe-top: env(safe-area-inset-top, 0px);
   --safe-right: env(safe-area-inset-right, 0px);
   --safe-bottom: env(safe-area-inset-bottom, 0px);
   --safe-left: env(safe-area-inset-left, 0px);
-  font-family: "Split Sans", system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+  font-family: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
   background: var(--bg);
   color: var(--text);
 }
@@ -40,9 +34,7 @@ body,
 
 body {
   overflow: hidden;
-  background:
-    radial-gradient(circle at 80% 10%, rgba(127, 150, 122, 0.18), transparent 28rem),
-    linear-gradient(135deg, #101010 0%, #151412 54%, #101010 100%);
+  background: var(--bg);
 }
 
 button,
@@ -61,7 +53,7 @@ button {
   min-height: 100dvh;
   display: grid;
   place-items: center;
-  padding: calc(28px + var(--safe-top)) calc(24px + var(--safe-right)) calc(28px + var(--safe-bottom)) calc(24px + var(--safe-left));
+  padding: calc(20px + var(--safe-top)) calc(16px + var(--safe-right)) calc(20px + var(--safe-bottom)) calc(16px + var(--safe-left));
 }
 
 .boot-screen p {
@@ -73,57 +65,64 @@ button {
 
 .start-card,
 .error-card {
-  width: min(560px, 100%);
+  width: min(440px, 100%);
   border: 1px solid var(--line);
-  border-radius: 32px;
-  padding: clamp(26px, 6vw, 48px);
-  background:
-    linear-gradient(180deg, rgba(255, 255, 255, 0.055), rgba(255, 255, 255, 0.015)),
-    var(--panel);
-  box-shadow: 0 28px 100px rgba(0, 0, 0, 0.34), inset 0 1px 0 rgba(255, 255, 255, 0.08);
+  border-radius: 10px;
+  padding: 24px;
+  background: var(--panel);
 }
 
 .eyebrow {
-  margin: 0 0 18px;
-  color: var(--accent-strong);
-  font-size: 0.78rem;
-  line-height: 1;
-  letter-spacing: 0.18em;
-  text-transform: uppercase;
+  margin: 0 0 10px;
+  color: var(--muted);
+  font-size: 0.875rem;
+  line-height: 1.3;
 }
 
 h1 {
   margin: 0;
-  font-size: clamp(2.4rem, 9vw, 5.8rem);
-  line-height: 0.92;
-  letter-spacing: -0.075em;
-  font-weight: 720;
+  font-size: 1.75rem;
+  line-height: 1.2;
+  letter-spacing: 0;
+  font-weight: 600;
 }
 
 .start-copy,
 .error-copy {
   max-width: 38rem;
-  margin: 22px 0 0;
+  margin: 12px 0 0;
   color: var(--muted);
-  font-size: clamp(1rem, 2.5vw, 1.15rem);
-  line-height: 1.62;
+  font-size: 1rem;
+  line-height: 1.45;
 }
 
 .stream-list {
   display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(120px, 1fr));
-  gap: 10px;
-  margin: 26px 0 0;
+  gap: 0;
+  margin: 20px 0 0;
   padding: 0;
   list-style: none;
+  border-top: 1px solid var(--line);
 }
 
 .stream-list li {
-  border: 1px solid var(--line);
-  border-radius: 16px;
-  padding: 12px 14px;
-  background: rgba(255, 255, 255, 0.035);
+  display: grid;
+  gap: 3px;
+  padding: 12px 0;
+  border-bottom: 1px solid var(--line);
   color: var(--text);
+}
+
+.stream-list-label {
+  font-weight: 600;
+}
+
+.stream-list-source {
+  overflow: hidden;
+  color: var(--muted);
+  font-size: 0.875rem;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 .primary-button,
@@ -144,17 +143,16 @@ h1 {
 }
 
 .primary-button {
-  width: 100%;
-  margin-top: 28px;
-  padding: 16px 20px;
-  border-radius: 18px;
-  color: #101010;
+  min-width: 160px;
+  padding: 14px 24px;
+  border-radius: 8px;
+  color: #111;
   background: var(--accent-strong);
-  font-weight: 720;
+  font-weight: 600;
 }
 
 .primary-button:hover:not(:disabled) {
-  background: #c0d0b9;
+  background: #93c5fd;
 }
 
 .primary-button:disabled {

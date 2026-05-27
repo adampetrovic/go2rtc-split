@@ -62,37 +62,14 @@ function renderStart(config: RuntimeConfig): void {
   app.replaceChildren();
 
   const screen = element("main", "start-screen");
-  const card = element("section", "start-card");
-  const eyebrow = element("p", "eyebrow", "Split monitor");
-  const title = element("h1", undefined, config.appName);
-  const copy = element(
-    "p",
-    "start-copy",
-    "Open go2rtc streams in one focused view. In split view, audio from every unmuted stream is played together; fullscreen one stream to hear only that room.",
-  );
-  const list = element("ul", "stream-list");
-
-  if (config.streams.length === 0) {
-    const item = element("li");
-    item.textContent = "Set GO2RTC_STREAMS to choose the streams to display.";
-    list.append(item);
-  } else {
-    for (const stream of config.streams) {
-      const item = element("li");
-      item.textContent = `${stream.label} · ${stream.src}`;
-      list.append(item);
-    }
-  }
-
-  const button = element("button", "primary-button", config.streams.length === 0 ? "No streams configured" : "Start monitor");
+  const button = element("button", "primary-button", config.streams.length === 0 ? "No streams configured" : "Start");
   button.type = "button";
   button.disabled = config.streams.length === 0;
   button.addEventListener("click", () => {
     void startMonitor(config);
   });
 
-  card.append(eyebrow, title, copy, list, button);
-  screen.append(card);
+  screen.append(button);
   app.append(screen);
 }
 
