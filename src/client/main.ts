@@ -1,4 +1,5 @@
 import { AudioMeter } from "./audio-meter";
+import { muteForBackground, restoreAfterBackground, type BackgroundAudioSnapshot } from "./background-audio";
 import { Go2rtcPeer, type StreamStatusUpdate } from "./rtc";
 import "./styles.css";
 import { DEFAULT_RUNTIME_CONFIG, type RuntimeConfig, type SplitStream } from "../shared/config";
@@ -315,6 +316,7 @@ function createSleepRecoveryController(config: RuntimeConfig, activeStreams: Act
   let pendingTimer = 0;
   let pendingForceReconnect = false;
   let pendingReason = "App resumed";
+  let backgroundAudioSnapshot: BackgroundAudioSnapshot<ActiveStream> | null = null;
   let disposed = false;
 
   const recover = async (options: SleepRecoveryOptions = {}) => {
@@ -358,10 +360,16 @@ function createSleepRecoveryController(config: RuntimeConfig, activeStreams: Act
     }, 250);
   };
 
+  const suspendForHidden = () => {
+    hiddenAt ||= Date.now();
+    backgroundAudioSnapshot = muteForBackground(activeStreams, backgroundAudioSnapshot, updateMuteButton);
+  };
+
   const resumeFromHidden = (reason: string, forceReconnect: boolean) => {
     const wasHidden = hiddenAt > 0;
     const hiddenFor = wasHidden ? Date.now() - hiddenAt : 0;
     hiddenAt = 0;
+    backgroundAudioSnapshot = restoreAfterBackground(activeStreams, backgroundAudioSnapshot, updateMuteButton);
 
     const shouldReconnect = forceReconnect || (wasHidden && hiddenFor >= config.recovery.reconnectAfterMs);
     const recoveryReason = shouldReconnect && wasHidden ? `${reason} after ${formatDuration(hiddenFor)}` : reason;
@@ -370,13 +378,17 @@ function createSleepRecoveryController(config: RuntimeConfig, activeStreams: Act
 
   const onVisibilityChange = () => {
     if (document.visibilityState === "hidden") {
-      hiddenAt = Date.now();
+      suspendForHidden();
       return;
     }
 
     if (document.visibilityState === "visible") {
       resumeFromHidden("App resumed", false);
     }
+  };
+
+  const onPageHide = () => {
+    suspendForHidden();
   };
 
   const onPageShow = (event: PageTransitionEvent) => {
@@ -391,6 +403,7 @@ function createSleepRecoveryController(config: RuntimeConfig, activeStreams: Act
 
   if (shouldListen) {
     document.addEventListener("visibilitychange", onVisibilityChange);
+    window.addEventListener("pagehide", onPageHide);
     window.addEventListener("pageshow", onPageShow);
     window.addEventListener("focus", onFocus);
   }
@@ -400,7 +413,9 @@ function createSleepRecoveryController(config: RuntimeConfig, activeStreams: Act
     cleanup() {
       disposed = true;
       window.clearTimeout(pendingTimer);
+      backgroundAudioSnapshot = restoreAfterBackground(activeStreams, backgroundAudioSnapshot, updateMuteButton);
       document.removeEventListener("visibilitychange", onVisibilityChange);
+      window.removeEventListener("pagehide", onPageHide);
       window.removeEventListener("pageshow", onPageShow);
       window.removeEventListener("focus", onFocus);
     },
