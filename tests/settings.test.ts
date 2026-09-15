@@ -55,6 +55,7 @@ describe("browser settings", () => {
       streams: [{ id: "front-yard", src: "front_yard", label: "Front Yard" }],
       layout: "grid",
       objectFit: "cover",
+      cleanView: true,
     };
 
     writeUserSettings(settings, storage);
@@ -67,6 +68,25 @@ describe("browser settings", () => {
     expect(effective.streams).toEqual([{ id: "front-yard", src: "front_yard", label: "Front Yard", muted: undefined }]);
     expect(effective.layout).toBe("grid");
     expect(effective.objectFit).toBe("cover");
+    expect(effective.features.cleanView).toBe(true);
+  });
+
+  it("leaves deploy clean-view defaults untouched for old saved settings", () => {
+    const storage = new MemoryStorage();
+    storage.setItem(
+      USER_SETTINGS_STORAGE_KEY,
+      JSON.stringify({
+        version: 1,
+        streams: [{ id: "front-yard", src: "front_yard", label: "Front Yard" }],
+        layout: "stack",
+        objectFit: "contain",
+      }),
+    );
+
+    const baseConfig = buildRuntimeConfig({ CLEAN_VIEW: "true" });
+    const effective = applyUserSettings(baseConfig, readUserSettings(storage));
+
+    expect(effective.features.cleanView).toBe(true);
   });
 
   it("builds same-origin go2rtc stream discovery URLs", () => {

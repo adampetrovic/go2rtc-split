@@ -65,6 +65,7 @@ export function buildRuntimeConfig(env: Env = process.env): RuntimeConfig {
       audioMeters: parseBoolean(env.AUDIO_METERS, defaults.features.audioMeters),
       audioUnlockPrompt: parseBoolean(env.AUDIO_UNLOCK_PROMPT, defaults.features.audioUnlockPrompt),
       sleepRecovery: parseBoolean(env.SLEEP_RECOVERY, defaults.features.sleepRecovery),
+      cleanView: parseBoolean(env.CLEAN_VIEW, defaults.features.cleanView),
     },
   };
 }

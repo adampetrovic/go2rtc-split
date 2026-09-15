@@ -55,6 +55,11 @@ const OBJECT_FIT_OPTIONS: Array<{ value: ObjectFitMode; label: string; descripti
   { value: "fill", label: "Stretch", description: "Ignore aspect ratio" },
 ];
 
+const CAMERA_CHROME_OPTIONS: Array<{ value: "visible" | "clean"; label: string; description: string }> = [
+  { value: "visible", label: "Show controls", description: "Labels and buttons stay over each stream" },
+  { value: "clean", label: "Camera only", description: "Hide overlays after Start" },
+];
+
 const app = getAppRoot();
 
 void boot();
@@ -148,6 +153,7 @@ function renderSettings(baseConfig: RuntimeConfig): void {
   let draftStreams = current.streams;
   let draftLayout = current.layout;
   let draftObjectFit = current.objectFit;
+  let draftCleanView = current.cleanView ?? false;
   let availableStreams: SplitStream[] = [];
 
   const screen = element("main", "settings-screen");
@@ -171,6 +177,9 @@ function renderSettings(baseConfig: RuntimeConfig): void {
   });
   const objectFitField = createChoiceField("Video fit", OBJECT_FIT_OPTIONS, draftObjectFit, (value) => {
     draftObjectFit = value;
+  });
+  const cameraChromeField = createChoiceField("Camera chrome", CAMERA_CHROME_OPTIONS, draftCleanView ? "clean" : "visible", (value) => {
+    draftCleanView = value === "clean";
   });
 
   const selectedSection = element("section", "settings-section");
@@ -300,6 +309,7 @@ function renderSettings(baseConfig: RuntimeConfig): void {
     streams: draftStreams,
     layout: draftLayout,
     objectFit: draftObjectFit,
+    cleanView: draftCleanView,
   });
 
   const persistDraft = (): UserSettings => {
@@ -372,7 +382,7 @@ function renderSettings(baseConfig: RuntimeConfig): void {
 
   renderSelectedStreams();
   renderAvailableStreams();
-  card.append(header, layoutField, objectFitField, selectedSection, discoverSection, manualSection, actions);
+  card.append(header, layoutField, objectFitField, cameraChromeField, selectedSection, discoverSection, manualSection, actions);
   screen.append(card);
   app.append(screen);
   void refreshAvailableStreams();
@@ -383,6 +393,7 @@ async function startMonitor(config: RuntimeConfig, baseConfig: RuntimeConfig): P
 
   const audioContext = await createAudioContext(config);
   const monitor = element("main", `monitor layout-${config.layout}`);
+  monitor.classList.toggle("is-clean-view", config.features.cleanView);
   if (hasGlobalControls(config)) {
     monitor.classList.add("has-global-controls");
   }
@@ -574,6 +585,7 @@ function createGlobalControls(
   onSettings: () => void,
 ): HTMLElement {
   const controls = element("nav", "global-controls");
+  if (config.features.cleanView) return controls;
 
   if (config.features.showControls) {
     const muteAll = element("button", "secondary-button", "Mute all");
@@ -956,6 +968,7 @@ function slugFieldName(value: string): string {
 }
 
 function hasGlobalControls(config: RuntimeConfig): boolean {
+  if (config.features.cleanView) return false;
   return config.features.showControls || (config.features.fullscreenButton && config.features.documentFullscreenButton && isFullscreenSupported());
 }
 

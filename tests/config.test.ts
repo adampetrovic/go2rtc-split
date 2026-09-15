@@ -52,6 +52,11 @@ describe("runtime config", () => {
     expect(config.recovery.reconnectAfterMs).toBe(45_000);
   });
 
+  it("configures clean camera view", () => {
+    const config = buildRuntimeConfig({ CLEAN_VIEW: "true" });
+    expect(config.features.cleanView).toBe(true);
+  });
+
   it("configures the go2rtc stream discovery path", () => {
     const config = buildRuntimeConfig({ GO2RTC_STREAMS_PATH: "custom/streams" });
     expect(config.go2rtc.streamsPath).toBe("/custom/streams");

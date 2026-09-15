@@ -16,7 +16,7 @@ That means an Envoy/Gateway route can send `/split/*` to this container while le
 
 ## Features
 
-- Browser settings screen for selecting go2rtc streams and split-view style at runtime.
+- Browser settings screen for selecting go2rtc streams, split-view style, and clean camera-only mode at runtime.
 - Multiple go2rtc streams in a split view.
 - Browser-mixed audio from all unmuted streams, with per-stream focus audio.
 - iPad-friendly start screen for Safari audio permissions.
@@ -60,7 +60,7 @@ docker run --rm -p 8080:8080 \
 
 ## UX model
 
-- Open **Settings** to fetch the go2rtc stream list from `/api/streams`, select cameras, order them, and choose Auto, Vertical, or Grid layout.
+- Open **Settings** to fetch the go2rtc stream list from `/api/streams`, select cameras, order them, choose Auto, Vertical, or Grid layout, and optionally hide all camera overlays/buttons.
 - Split view shows every selected stream. Browser-saved settings override the deploy-time stream and layout defaults on that device.
 - Per-stream **Full screen** buttons enter focus mode. In installed PWA mode this is an in-app fullscreen fallback; in browsers that support native fullscreen the stream can also enter browser fullscreen.
 - In focus mode, the active stream fills the app and its button changes to **Split view**.
@@ -99,6 +99,7 @@ Deploy-time defaults are read at container start and exposed to the browser thro
 | `AUDIO_METERS` | `true` | Show per-stream audio meters. |
 | `AUDIO_UNLOCK_PROMPT` | `true` | Show a tap-to-enable-audio prompt if browser autoplay policy blocks playback. |
 | `SLEEP_RECOVERY` | `true` | On return from lock/background, resume audio contexts, retry playback, and optionally restart streams. |
+| `CLEAN_VIEW` | `false` | Hide stream labels, buttons, audio meters, and global controls after starting the monitor. |
 | `SLEEP_RECOVERY_RECONNECT_MS` | `30000` | Restart all WebRTC streams after the app has been hidden for at least this long. Set `0` to reconnect on every resume. |
 | `RECONNECT_MIN_MS` | `1000` | Minimum reconnect backoff. |
 | `RECONNECT_MAX_MS` | `15000` | Maximum reconnect backoff. |

@@ -623,7 +623,10 @@ h1 {
   backdrop-filter: blur(18px);
 }
 
-.monitor.is-fullscreen .global-controls {
+.monitor.is-fullscreen .global-controls,
+.monitor.is-clean-view .global-controls,
+.monitor.is-clean-view .panel-top,
+.monitor.is-clean-view .panel-bottom {
   display: none;
 }
 

@@ -64,6 +64,7 @@ export interface RuntimeConfig {
     audioMeters: boolean;
     audioUnlockPrompt: boolean;
     sleepRecovery: boolean;
+    cleanView: boolean;
   };
 }
 
@@ -109,6 +110,7 @@ export const DEFAULT_RUNTIME_CONFIG: RuntimeConfig = {
     audioMeters: true,
     audioUnlockPrompt: true,
     sleepRecovery: true,
+    cleanView: false,
   },
 };
 

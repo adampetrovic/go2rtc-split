@@ -20,6 +20,7 @@ export interface UserSettings {
   streams: SplitStream[];
   layout: LayoutMode;
   objectFit: ObjectFitMode;
+  cleanView?: boolean;
 }
 
 export interface StorageLike {
@@ -69,6 +70,7 @@ export function createUserSettings(config: RuntimeConfig): UserSettings {
     streams: cloneStreams(config.streams),
     layout: config.layout,
     objectFit: config.objectFit,
+    cleanView: config.features.cleanView,
   };
 }
 
@@ -80,6 +82,10 @@ export function applyUserSettings(config: RuntimeConfig, settings: UserSettings 
     streams: cloneStreams(settings.streams),
     layout: settings.layout,
     objectFit: settings.objectFit,
+    features: {
+      ...config.features,
+      cleanView: settings.cleanView ?? config.features.cleanView,
+    },
   };
 }
 
@@ -101,12 +107,14 @@ function coerceUserSettings(value: unknown): UserSettings | null {
   const streams = Array.isArray(value.streams) ? parseStreams(JSON.stringify(value.streams), []) : [];
   const layout = parseEnum(stringValue(value.layout), LAYOUT_VALUES, "auto");
   const objectFit = parseEnum(stringValue(value.objectFit), OBJECT_FIT_VALUES, "contain");
+  const cleanView = typeof value.cleanView === "boolean" ? value.cleanView : undefined;
 
   return {
     version: USER_SETTINGS_VERSION,
     streams,
     layout,
     objectFit,
+    cleanView,
   };
 }
 
