@@ -1,5 +1,8 @@
 import {
+  AUDIO_MODE_VALUES,
   DEFAULT_RUNTIME_CONFIG,
+  LAYOUT_VALUES,
+  OBJECT_FIT_VALUES,
   parseBoolean,
   parseEnum,
   parseIceServers,
@@ -12,10 +15,6 @@ import {
 } from "../src/shared/config.js";
 
 type Env = NodeJS.ProcessEnv | Record<string, string | undefined>;
-
-const LAYOUT_VALUES = ["auto", "stack", "grid"] as const;
-const OBJECT_FIT_VALUES = ["contain", "cover", "fill"] as const;
-const AUDIO_MODE_VALUES = ["mixed", "muted"] as const;
 
 export function buildRuntimeConfig(env: Env = process.env): RuntimeConfig {
   const defaults = DEFAULT_RUNTIME_CONFIG;
@@ -36,6 +35,7 @@ export function buildRuntimeConfig(env: Env = process.env): RuntimeConfig {
     go2rtc: {
       wsUrl: env.GO2RTC_WS_URL?.trim() || null,
       wsPath: normalisePath(env.GO2RTC_WS_PATH, defaults.go2rtc.wsPath),
+      streamsPath: normalisePath(env.GO2RTC_STREAMS_PATH, defaults.go2rtc.streamsPath),
       streamParam: env.GO2RTC_STREAM_PARAM?.trim() || defaults.go2rtc.streamParam,
       extraQuery: parseQuery(env.GO2RTC_QUERY),
     },

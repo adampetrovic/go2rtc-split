@@ -16,6 +16,7 @@ That means an Envoy/Gateway route can send `/split/*` to this container while le
 
 ## Features
 
+- Browser settings screen for selecting go2rtc streams and split-view style at runtime.
 - Multiple go2rtc streams in a split view.
 - Browser-mixed audio from all unmuted streams, with per-stream focus audio.
 - iPad-friendly start screen for Safari audio permissions.
@@ -24,7 +25,7 @@ That means an Envoy/Gateway route can send `/split/*` to this container while le
 - Pinch or pointer zoom and pan per stream for framing.
 - Auto reconnect with backoff.
 - Optional mute controls, browser fullscreen controls, stream focus controls, and audio meters.
-- Runtime configuration via environment variables.
+- Runtime defaults via environment variables, with per-browser camera/layout overrides saved locally.
 - Docker image build and GHCR publish workflow.
 
 ## Local development
@@ -59,7 +60,8 @@ docker run --rm -p 8080:8080 \
 
 ## UX model
 
-- Split view shows every configured stream.
+- Open **Settings** to fetch the go2rtc stream list from `/api/streams`, select cameras, order them, and choose Auto, Vertical, or Grid layout.
+- Split view shows every selected stream. Browser-saved settings override the deploy-time stream and layout defaults on that device.
 - Per-stream **Full screen** buttons enter focus mode. In installed PWA mode this is an in-app fullscreen fallback; in browsers that support native fullscreen the stream can also enter browser fullscreen.
 - In focus mode, the active stream fills the app and its button changes to **Split view**.
 - Pinch a stream to zoom it, drag while zoomed to reframe it, and double-tap to reset the crop.
@@ -67,7 +69,7 @@ docker run --rm -p 8080:8080 \
 
 ## Configuration
 
-All configuration is read at container start and exposed to the browser through `<BASE_PATH>/config.json`.
+Deploy-time defaults are read at container start and exposed to the browser through `<BASE_PATH>/config.json`. The Settings screen can override the selected streams, layout, and video fit per browser using localStorage.
 
 | Variable | Default | Description |
 |---|---:|---|
@@ -78,6 +80,7 @@ All configuration is read at container start and exposed to the browser through 
 | `PAGE_TITLE` | `go2rtc Split` | Browser page title. |
 | `GO2RTC_STREAMS` / `STREAMS` | unset | Streams to show. Supports comma format or JSON array. |
 | `GO2RTC_WS_PATH` | `/api/ws` | Same-origin go2rtc WebSocket path. |
+| `GO2RTC_STREAMS_PATH` | `/api/streams` | Same-origin go2rtc stream discovery endpoint used by Settings. |
 | `GO2RTC_WS_URL` | unset | Absolute WebSocket URL. Supports `{src}` placeholder. Overrides `GO2RTC_WS_PATH`. |
 | `GO2RTC_STREAM_PARAM` | `src` | Query parameter name for the stream source. |
 | `GO2RTC_QUERY` | unset | Extra query string added to WebSocket URLs, for example `media=video+audio`. |

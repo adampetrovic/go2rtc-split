@@ -1,6 +1,10 @@
-export type LayoutMode = "auto" | "stack" | "grid";
-export type ObjectFitMode = "contain" | "cover" | "fill";
-export type AudioMode = "mixed" | "muted";
+export const LAYOUT_VALUES = ["auto", "stack", "grid"] as const;
+export const OBJECT_FIT_VALUES = ["contain", "cover", "fill"] as const;
+export const AUDIO_MODE_VALUES = ["mixed", "muted"] as const;
+
+export type LayoutMode = (typeof LAYOUT_VALUES)[number];
+export type ObjectFitMode = (typeof OBJECT_FIT_VALUES)[number];
+export type AudioMode = (typeof AUDIO_MODE_VALUES)[number];
 
 export interface SplitStream {
   id: string;
@@ -30,6 +34,7 @@ export interface RuntimeConfig {
   go2rtc: {
     wsUrl: string | null;
     wsPath: string;
+    streamsPath: string;
     streamParam: string;
     extraQuery: Record<string, string>;
   };
@@ -74,6 +79,7 @@ export const DEFAULT_RUNTIME_CONFIG: RuntimeConfig = {
   go2rtc: {
     wsUrl: null,
     wsPath: "/api/ws",
+    streamsPath: "/api/streams",
     streamParam: "src",
     extraQuery: {},
   },
@@ -274,6 +280,10 @@ function coerceStream(item: string | Partial<SplitStream>, index: number): Split
   return normaliseStream(item, index);
 }
 
+export function createSplitStream(src: string, label?: string, index = 0, muted?: boolean): SplitStream | null {
+  return normaliseStream({ src, label, muted }, index);
+}
+
 function normaliseStream(item: Partial<SplitStream>, index: number): SplitStream | null {
   const src = item.src?.trim();
   if (!src) return null;
@@ -291,7 +301,7 @@ function isSplitStream(stream: SplitStream | null): stream is SplitStream {
   return stream != null && stream.src.length > 0;
 }
 
-function humaniseStreamName(src: string): string {
+export function humaniseStreamName(src: string): string {
   return src
     .replace(/[_-]+/g, " ")
     .replace(/\b(hq|lq|hd|sd)\b/gi, "")
